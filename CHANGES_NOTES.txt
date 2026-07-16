@@ -1,0 +1,140 @@
+﻿================================================================
+  PROJECT CHANGES LOG
+  Backend: Django REST API  |  Frontend: React Native (Expo)
+================================================================
+
+DATE: 2026-07-03
+================================================================
+
+─────────────────────────────────────────────────────────────
+  WAS OTP LOGIC ALREADY IMPLEMENTED?
+─────────────────────────────────────────────────────────────
+
+YES — but only partially.
+
+The OTP routes, controller, serializer, and service were already
+in the codebase:
+  - POST /auth/forgot-password/  -> generates OTP
+  - POST /auth/verify-otp/       -> verifies OTP
+
+HOWEVER, the OTP was NOT actually sent via email.
+The old code only printed it to the terminal console:
+
+  print(f"[DEV] OTP for email: {otp}")
+
+This means in production, users would NEVER receive an OTP.
+
+
+─────────────────────────────────────────────────────────────
+  CHANGES MADE TODAY
+─────────────────────────────────────────────────────────────
+
+1. core/settings.py
+   ─────────────────
+   ADDED: Gmail SMTP email configuration at the bottom of the file.
+
+   EMAIL_BACKEND       = 'django.core.mail.backends.smtp.EmailBackend'
+   EMAIL_HOST          = 'smtp.gmail.com'
+   EMAIL_PORT          = 587
+   EMAIL_USE_TLS       = True
+   EMAIL_HOST_USER     = os.environ.get('EMAIL_HOST_USER', 'your_email@gmail.com')
+   EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'your_app_password_here')
+   DEFAULT_FROM_EMAIL  = EMAIL_HOST_USER
+
+   YOU MUST fill in your real Gmail address and App Password.
+   See setup instructions below.
+
+
+2. authentication/services/auth_service.py
+   ─────────────────────────────────────────
+   CHANGED: forgot_password() method now sends a REAL email using
+   Django's send_mail() instead of only printing to console.
+
+   - Added imports: send_mail, settings
+   - OTP still generated randomly (6 digits), stored in cache (5 min TTL)
+   - send_mail() sends plain-text email to user's address with the OTP
+   - If email delivery fails (wrong SMTP creds), API still responds with
+     success + an "otp_debug" field showing the OTP for development testing
+   - On success, no OTP is exposed in the API response (secure)
+
+   Email sent to user:
+     Subject: Your OTP Code
+     Body: OTP code + 5-minute expiry notice
+
+
+3. React Native — api/auth.js  (Frontend)
+   ─────────────────────────────────────────
+   ADDED two new API functions:
+
+   a) forgotPassword({ email })
+      Calls POST /auth/forgot-password/  -> triggers OTP email
+
+   b) verifyOtp({ email, otp })
+      Calls POST /auth/verify-otp/  -> validates the entered OTP
+
+   CHANGED: BASE_URL updated from 192.168.1.5 -> 192.168.1.23
+
+
+─────────────────────────────────────────────────────────────
+  HOW TO SET UP GMAIL FOR REAL OTP EMAILS
+─────────────────────────────────────────────────────────────
+
+Step 1: Enable 2-Step Verification on your Google account
+        https://myaccount.google.com/security
+
+Step 2: Create a Gmail App Password
+        https://myaccount.google.com/apppasswords
+        Select app: Mail | Select device: Other (custom name)
+        Copy the 16-character App Password
+
+Step 3: Edit core/settings.py — replace placeholder values:
+
+          EMAIL_HOST_USER     = 'myapp@gmail.com'
+          EMAIL_HOST_PASSWORD = 'abcd efgh ijkl mnop'
+
+Step 4: Restart the Django server:
+        .\venv\Scripts\python.exe manage.py runserver 0.0.0.0:8000
+
+
+─────────────────────────────────────────────────────────────
+  OTP FLOW (End to End)
+─────────────────────────────────────────────────────────────
+
+  [React Native App]
+       |
+       |  POST /auth/forgot-password/  { email }
+       v
+  [Django Backend]
+       |  Generates 6-digit OTP
+       |  Stores OTP in cache (5 min TTL)
+       |  Sends email via Gmail SMTP  ------>  [User's Inbox]
+       |
+       |  Returns: { success: true, message: "OTP sent" }
+       v
+  [React Native App]
+       |  User enters OTP from email
+       |
+       |  POST /auth/verify-otp/  { email, otp }
+       v
+  [Django Backend]
+       |  Checks OTP in cache
+       |  If correct -> deletes OTP, marks email as verified
+       |  Returns: { success: true }
+       v
+  [React Native App]
+       |  Navigate to Reset Password screen
+
+
+─────────────────────────────────────────────────────────────
+  FILES CHANGED SUMMARY
+─────────────────────────────────────────────────────────────
+
+  Backend:
+  [CHANGED] core/settings.py                         - Added SMTP email config
+  [CHANGED] authentication/services/auth_service.py  - Real email via send_mail()
+
+  Frontend (React Native):
+  [CHANGED] api/auth.js  - Added forgotPassword() and verifyOtp() functions
+  [CHANGED] api/auth.js  - Updated BASE_URL to 192.168.1.23
+
+================================================================

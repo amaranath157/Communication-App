@@ -1,0 +1,156 @@
+=========================================================
+FRONTEND INTEGRATION GUIDE - ENGLISH COMMUNICATION APP
+=========================================================
+
+BASE URL: 
+http://127.0.0.1:8000/api/v1/
+
+(Note: For React Native on physical devices or emulators, you may need to use your machine's local IP address instead of 127.0.0.1, e.g., http://192.168.1.5:8000/api/v1/)
+
+---------------------------------------------------------
+1. AUTHENTICATION FLOW
+---------------------------------------------------------
+1. User registers or logs in.
+2. The backend returns 'access' and 'refresh' tokens.
+3. Save these tokens securely in your React Native app (using AsyncStorage or expo-secure-store).
+4. For all protected routes (like GET /users/profile/), attach the access token to the Request Headers:
+   Authorization: Bearer <your_access_token>
+5. When the access token expires, use the refresh token to get a new one.
+
+---------------------------------------------------------
+2. API ENDPOINTS & USAGE (AXIOS EXAMPLES)
+---------------------------------------------------------
+
+*** A. Register ***
+Endpoint: POST /auth/register/
+Headers: Content-Type: application/json
+Body:
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "strongpassword123"
+}
+
+Example (React Native / JS):
+import axios from 'axios';
+
+const register = async () => {
+    try {
+        const response = await axios.post('http://127.0.0.1:8000/api/v1/auth/register/', {
+            name: "John Doe",
+            email: "john@example.com",
+            password: "strongpassword123"
+        });
+        console.log("Success:", response.data.message);
+        // Store tokens: response.data.data.tokens.access
+    } catch (error) {
+        console.error("Error:", error.response?.data);
+    }
+};
+
+
+*** B. Login ***
+Endpoint: POST /auth/login/
+Headers: Content-Type: application/json
+Body:
+{
+  "email": "john@example.com",
+  "password": "strongpassword123"
+}
+
+Example:
+const login = async () => {
+    try {
+        const response = await axios.post('http://127.0.0.1:8000/api/v1/auth/login/', {
+            email: "john@example.com",
+            password: "strongpassword123"
+        });
+        const { access, refresh } = response.data.data.tokens;
+        // Save 'access' and 'refresh' to AsyncStorage/SecureStore
+        console.log("Login successful!");
+    } catch (error) {
+        console.error("Error:", error.response?.data);
+    }
+};
+
+
+*** C. Get Profile (Protected) ***
+Endpoint: GET /users/profile/
+Headers: 
+- Content-Type: application/json
+- Authorization: Bearer <access_token>
+
+Example:
+const getProfile = async (accessToken) => {
+    try {
+        const response = await axios.get('http://127.0.0.1:8000/api/v1/users/profile/', {
+            headers: {
+                Authorization: `Bearer ${accessToken}`
+            }
+        });
+        console.log("Profile Data:", response.data.data);
+    } catch (error) {
+        console.error("Failed to fetch profile", error.response?.data);
+    }
+};
+
+
+*** D. Update Profile (Protected) ***
+Endpoint: PUT /users/profile/
+Headers: Authorization: Bearer <access_token>
+Body (All fields are optional):
+{
+  "name": "John Doe Updated",
+  "phone": "+1234567890",
+  "gender": "M",
+  "age": 25,
+  "bio": "I love learning English!",
+  "country": "USA"
+}
+
+
+*** E. Get Online Users (Protected) ***
+Endpoint: GET /users/online-users/
+Headers: Authorization: Bearer <access_token>
+Response: Returns a list of users whose 'is_online' status is true.
+
+
+*** F. Logout (Protected) ***
+Endpoint: POST /auth/logout/
+Headers: Authorization: Bearer <access_token>
+Body:
+{
+  "refresh": "<your_refresh_token>"
+}
+Description: Blacklists the refresh token so it can no longer be used.
+
+*** G. AI Teacher Evaluate (Protected) ***
+Endpoint: POST /ai-teacher/evaluate/
+Headers: Authorization: Bearer <access_token>
+Body:
+{
+  "text": "I is go to market tomorrow for buys some fruits."
+}
+Response:
+{
+  "corrected_text": "I will go to the market tomorrow to buy some fruit.",
+  "detailed_feedback": "Use the future tense 'will go' instead of 'is go'. Also, use the infinitive 'to buy' instead of 'for buys', and 'fruit' is typically uncountable.",
+  "score_out_of_10": 3
+}
+
+
+---------------------------------------------------------
+3. ERROR HANDLING
+---------------------------------------------------------
+The backend returns standardized error responses for all endpoints.
+
+Format:
+{
+  "success": false,
+  "message": "Error message description",
+  "errors": {
+      "field_name": ["Validation error details"]
+  }
+}
+
+You can access this in Axios via: error.response.data.message
