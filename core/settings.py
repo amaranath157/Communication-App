@@ -16,17 +16,17 @@ from datetime import timedelta
 import dj_database_url
 from dotenv import load_dotenv
 
-# ─── Load .env for local development ─────────────────────────────────────────
-# In CI/CD, secrets are injected directly as environment variables.
-# The .env file is git-ignored and should never be committed.
-load_dotenv(BASE_DIR / '.env' if Path(__file__).resolve().parent.parent.joinpath('.env').exists() else None)
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# ─── Load .env for local development ─────────────────────────────────────────
+# In CI/CD, secrets are injected directly as environment variables.
+# The .env file is git-ignored and should never be committed.
+load_dotenv(BASE_DIR / '.env')
+
 # ─── API Keys (injected via CI/CD secrets or local .env) ─────────────────────
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
-GITHUB_MODELS_TOKEN = os.environ.get('GITHUB_MODELS_TOKEN')
+GH_MODELS_TOKEN = os.environ.get('GH_MODELS_TOKEN')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
