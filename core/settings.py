@@ -14,22 +14,28 @@ from pathlib import Path
 import os
 from datetime import timedelta
 import dj_database_url
+from dotenv import load_dotenv
+
+# ─── Load .env for local development ─────────────────────────────────────────
+# In CI/CD, secrets are injected directly as environment variables.
+# The .env file is git-ignored and should never be committed.
+load_dotenv(BASE_DIR / '.env' if Path(__file__).resolve().parent.parent.joinpath('.env').exists() else None)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# API Keys
-GEMINI_API_KEY = 'GEMINI_API_KEY_REMOVED'
-GITHUB_MODELS_TOKEN = 'GITHUB_MODELS_TOKEN_REMOVED'
+# ─── API Keys (injected via CI/CD secrets or local .env) ─────────────────────
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+GITHUB_MODELS_TOKEN = os.environ.get('GITHUB_MODELS_TOKEN')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'DJANGO_SECRET_KEY_REMOVED'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1', 'yes')
 
 ALLOWED_HOSTS = [
     'localhost',
@@ -109,7 +115,7 @@ CACHES = {
 
 DATABASES = {
     'default': dj_database_url.config(
-        default='postgresql://neondb_owner:DB_PASSWORD_REMOVED@ep-shiny-meadow-atu050bk-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require',
+        default=os.environ.get('DATABASE_URL'),
         conn_max_age=600,
         conn_health_checks=True,
     )
@@ -184,8 +190,8 @@ EMAIL_BACKEND   = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST      = 'smtp.gmail.com'
 EMAIL_PORT      = 587
 EMAIL_USE_TLS   = True
-EMAIL_HOST_USER     = os.environ.get('EMAIL_HOST_USER', 't.amarnath795@gmail.com')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'EMAIL_PASSWORD_REMOVED')  # App Password
+EMAIL_HOST_USER     = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL  = EMAIL_HOST_USER
 
 # ─── Channels & WebSockets ────────────────────────────────────────────────────
@@ -195,7 +201,7 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [("127.0.0.1", 6379)],
+            "hosts": [(os.environ.get('REDIS_HOST', '127.0.0.1'), int(os.environ.get('REDIS_PORT', 6379)))],
         },
     },
 }
