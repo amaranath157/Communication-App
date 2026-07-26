@@ -39,7 +39,7 @@ DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1', 'yes')
 
 ALLOWED_HOSTS = os.environ.get(
     'ALLOWED_HOSTS',
-    'localhost,127.0.0.1,communication-app.up.railway.app'
+    'localhost,127.0.0.1,communication-app.up.railway.app,communication-app-production-81aa.up.railway.app'
 ).split(',')
 
 # ─── CORS (allow Expo web & mobile to call the API) ───────────────────────────
