@@ -115,7 +115,9 @@ CACHES = {
 
 DATABASES = {
     'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL'),
+        # Falls back to SQLite at build time (e.g. Docker collectstatic).
+        # In production, DATABASE_URL env var is always set and takes priority.
+        default=f'sqlite:///{BASE_DIR / "db.sqlite3"}',
         conn_max_age=600,
         conn_health_checks=True,
     )

@@ -52,10 +52,10 @@ RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser \
 
 USER appuser
 
-# Collect static files
-RUN python manage.py collectstatic --noinput
-
 EXPOSE $PORT
 
-# Start Daphne ASGI server (required for Django Channels / WebSockets)
-CMD daphne -b 0.0.0.0 -p $PORT core.asgi:application
+# Run migrations, collect static, then start Daphne ASGI server
+CMD sh -c "python manage.py migrate --noinput && \
+           python manage.py collectstatic --noinput && \
+           python manage.py createcachetable && \
+           daphne -b 0.0.0.0 -p $PORT core.asgi:application"

@@ -32,10 +32,6 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-    command: >
-      sh -c "python manage.py migrate --noinput &&
-             python manage.py createcachetable &&
-             daphne -b 0.0.0.0 -p 8000 core.asgi:application"
 
 volumes:
   redis_data:
