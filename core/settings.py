@@ -37,11 +37,10 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1', 'yes')
 
-ALLOWED_HOSTS = [
-    'communication-app.up.railway.app',  # ✅ Railway production domain
-    'localhost',
-    '127.0.0.1',
-]
+ALLOWED_HOSTS = os.environ.get(
+    'ALLOWED_HOSTS',
+    'localhost,127.0.0.1,communication-app.up.railway.app'
+).split(',')
 
 # ─── CORS (allow Expo web & mobile to call the API) ───────────────────────────
 # NOTE: Native iOS/Android React Native apps bypass CORS entirely.
