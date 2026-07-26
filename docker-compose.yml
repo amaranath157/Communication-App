@@ -1,0 +1,41 @@
+version: "3.9"
+
+services:
+  # ── Redis (Channel Layer for WebSockets) ───────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: comm_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Django ASGI App (Daphne) ───────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: comm_web
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py createcachetable &&
+             daphne -b 0.0.0.0 -p 8000 core.asgi:application"
+
+volumes:
+  redis_data:
