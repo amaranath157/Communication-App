@@ -44,18 +44,25 @@ ALLOWED_HOSTS = [
 ]
 
 # ─── CORS (allow Expo web & mobile to call the API) ───────────────────────────
-# NOTE: CORS only matters for browser-based clients (Expo Web).
-# Native React Native apps on iOS/Android bypass CORS entirely.
+# NOTE: Native iOS/Android React Native apps bypass CORS entirely.
+# CORS only applies when running Expo Web (in browser) or Expo Go tunnel.
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
-    # Expo Web (if you run `expo start --web` or publish to web)
+    # ✅ Railway production
     'https://communication-app.up.railway.app',
-    # Local development
+    # ✅ Expo Web - local dev (expo start --web)
     'http://localhost:8081',
     'http://localhost:19006',
     'http://127.0.0.1:8081',
+    'http://127.0.0.1:19006',
+    # ✅ Expo Go tunnel (ngrok-style URLs used by Expo)
+    'https://arya-ai-app.exp.direct',
 ]
+
+# Allow all origins in DEBUG mode (local dev convenience)
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
 
 
 # Application definition
