@@ -78,6 +78,7 @@ INSTALLED_APPS = [
     'corsheaders',            # ✅ CORS support for browser/web requests
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'drf_yasg',
     'common',
     'users',
