@@ -1,4 +1,4 @@
-import google.generativeai as genai
+from google import genai
 import json
 import re
 import hashlib
@@ -51,8 +51,8 @@ class GeminiService:
             logger.warning("GEMINI_API_KEY is not set in settings. The AI Teacher feature will not work.")
             self.model = None
         else:
-            genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel('gemini-3.5-flash')
+            self.client = genai.Client(api_key=api_key)
+            self.model_name = 'gemini-2.0-flash'
             self.system_prompt = (
                 "You are a warm, natural English tutor. "
                 "When given a text, follow this EXACT feedback format for 'detailed_feedback':\n\n"
@@ -80,7 +80,7 @@ class GeminiService:
             logger.info(f"[GeminiService] Greeting detected — skipping API: '{text}'")
             return _greeting_response(text)
 
-        if not self.model:
+        if not hasattr(self, 'client'):
             return {
                 "corrected_text": text,
                 "detailed_feedback": "AI Teacher is currently unavailable due to missing configuration.",
@@ -90,7 +90,10 @@ class GeminiService:
         prompt = f"{self.system_prompt}\n\nHere is the learner's text to evaluate:\n{text}"
         
         try:
-            response = self.model.generate_content(prompt)
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+            )
             # Try to parse the response as JSON
             response_text = response.text
             # Sometimes Gemini wraps JSON in markdown blocks like ```json ... ```
