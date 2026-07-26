@@ -42,6 +42,7 @@ ALLOWED_HOSTS = os.environ.get(
     'localhost,127.0.0.1,communication-app.up.railway.app,communication-app-production-81aa.up.railway.app'
 ).split(',')
 
+
 # ─── CORS (allow Expo web & mobile to call the API) ───────────────────────────
 # NOTE: Native iOS/Android React Native apps bypass CORS entirely.
 # CORS only applies when running Expo Web (in browser) or Expo Go tunnel.
@@ -49,7 +50,7 @@ CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     # ✅ Railway production
-    'https://communication-app.up.railway.app',
+    'https://communication-app-production-81aa.up.railway.app',
     # ✅ Expo Web - local dev (expo start --web)
     'http://localhost:8081',
     'http://localhost:19006',
