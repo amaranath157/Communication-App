@@ -1,1 +1,1 @@
-web: daphne -b 0.0.0.0 -p $PORT core.asgi:application
+web: sh docker-entrypoint.sh
