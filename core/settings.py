@@ -38,16 +38,24 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1', 'yes')
 
 ALLOWED_HOSTS = [
+    'communication-app.up.railway.app',  # ✅ Railway production domain
     'localhost',
     '127.0.0.1',
-    '192.168.1.18',   # ✅ Your machine's LAN IP (phone connects via this)
-    '192.168.1.*',    # Allow all devices on local subnet
-    '*',              # Dev only — remove in production!
 ]
 
 # ─── CORS (allow Expo web & mobile to call the API) ───────────────────────────
-CORS_ALLOW_ALL_ORIGINS = True   # Dev only — restrict in production
+# NOTE: CORS only matters for browser-based clients (Expo Web).
+# Native React Native apps on iOS/Android bypass CORS entirely.
+CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = [
+    # Expo Web (if you run `expo start --web` or publish to web)
+    'https://communication-app.up.railway.app',
+    # Local development
+    'http://localhost:8081',
+    'http://localhost:19006',
+    'http://127.0.0.1:8081',
+]
 
 
 # Application definition
