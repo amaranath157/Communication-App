@@ -1,12 +1,10 @@
-# TEMPORARY SWITCH: Gemini model is temporarily replaced with GitHub Models (gpt-4o) for backend testing.
-# Original Gemini imports and structure preserved for future restoration.
-# from google import genai
+from google import genai
+from google.genai import types
 import json
 import re
 import hashlib
 from django.conf import settings
 import logging
-from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
@@ -47,68 +45,68 @@ def _greeting_response(text: str) -> dict:
     }
 
 
+SYSTEM_PROMPT = (
+    "You are a warm, natural English tutor. "
+    "When given a text, follow this EXACT feedback format for 'detailed_feedback':\n\n"
+    "FORMAT (if there are mistakes):\n"
+    "[Encouraging opener like 'Nice try!' or 'Good effort!'] + [Corrected sentence] + [Short reason why, 1 sentence] + [Polished version if it sounds unnatural]\n\n"
+    "FORMAT (if the text is already perfect):\n"
+    "'Perfect! Go ahead!'\n\n"
+    "RULES:\n"
+    "- 'I go to school now' is WRONG → correct to 'I am going to school now' (present continuous for right now).\n"
+    "- 'She go' → 'She goes' (third-person -s rule).\n"
+    "- Always fix: wrong tense, missing capital 'I', missing period, unnatural phrasing.\n"
+    "- Keep the full feedback under 3 sentences total.\n"
+    "- Tone: warm and real, not robotic or over-the-top cheerful.\n\n"
+    "EXAMPLE output for 'i go to school now':\n"
+    "'Nice try! The correct sentence is: I am going to school now. "
+    "Use am/is/are + verb-ing when talking about something happening right now. "
+    "A more natural way to say it: I'm heading to school now.'\n\n"
+    "Respond ONLY with valid JSON, no markdown, no code fences:\n"
+    '{"corrected_text": string, "detailed_feedback": string, "score_out_of_10": integer}'
+)
+
+
 class GeminiService:
     """
-    Evaluation service for AI Teacher.
-    Note: Gemini model has been temporarily replaced with GitHub Models (GPT-4o) for backend testing.
-    All method signatures and response schemas remain identical.
+    Evaluation service for AI Teacher using Google Gemini API.
+    Reads GEMINI_API_KEY from Django settings (injected via .env or CI/CD secrets).
     """
+
     def __init__(self):
-        token = getattr(settings, 'GITHUB_MODELS_TOKEN', None) or getattr(settings, 'GH_MODELS_TOKEN', None)
-        if not token:
-            logger.warning("GITHUB_MODELS_TOKEN / GH_MODELS_TOKEN is not set in settings. The AI Teacher feature will not work.")
+        api_key = getattr(settings, 'GEMINI_API_KEY', None)
+        if not api_key:
+            logger.warning("GEMINI_API_KEY is not set in settings. The AI Teacher feature will not work.")
             self.client = None
         else:
-            self.client = OpenAI(
-                base_url="https://models.inference.ai.azure.com",
-                api_key=token,
-            )
-            self.model_name = 'gpt-4o'
-            self.system_prompt = (
-                "You are a warm, natural English tutor. "
-                "When given a text, follow this EXACT feedback format for 'detailed_feedback':\n\n"
-                "FORMAT (if there are mistakes):\n"
-                "[Encouraging opener like 'Nice try!' or 'Good effort!'] + [Corrected sentence] + [Short reason why, 1 sentence] + [Polished version if it sounds unnatural]\n\n"
-                "FORMAT (if the text is already perfect):\n"
-                "'Perfect! Go ahead!'\n\n"
-                "RULES:\n"
-                "- 'I go to school now' is WRONG → correct to 'I am going to school now' (present continuous for right now).\n"
-                "- 'She go' → 'She goes' (third-person -s rule).\n"
-                "- Always fix: wrong tense, missing capital 'I', missing period, unnatural phrasing.\n"
-                "- Keep the full feedback under 3 sentences total.\n"
-                "- Tone: warm and real, not robotic or over-the-top cheerful.\n\n"
-                "EXAMPLE output for 'i go to school now':\n"
-                "'Nice try! The correct sentence is: I am going to school now. "
-                "Use am/is/are + verb-ing when talking about something happening right now. "
-                "A more natural way to say it: I\'m heading to school now.'\n\n"
-                "Respond ONLY with valid JSON, no markdown, no code fences:\n"
-                '{"corrected_text": string, "detailed_feedback": string, "score_out_of_10": integer}'
-            )
+            self.client = genai.Client(api_key=api_key)
+            self.model_name = 'gemini-2.0-flash'
 
-    def evaluate_text(self, text):
+    def evaluate_text(self, text: str) -> dict:
         # ── Greeting short-circuit ───────────────────────────────────────────
         if _is_greeting(text):
             logger.info(f"[GeminiService] Greeting detected — skipping API: '{text}'")
             return _greeting_response(text)
 
-        if not getattr(self, 'client', None):
+        if not self.client:
             return {
                 "corrected_text": text,
-                "detailed_feedback": "AI Teacher is currently unavailable due to missing GITHUB_MODELS_TOKEN configuration.",
-                "score_out_of_10": 0
+                "detailed_feedback": "AI Teacher is currently unavailable. Please configure a valid GEMINI_API_KEY.",
+                "score_out_of_10": 0,
             }
-        
+
         try:
-            response = self.client.chat.completions.create(
+            response = self.client.models.generate_content(
                 model=self.model_name,
-                messages=[
-                    {"role": "system", "content": self.system_prompt},
-                    {"role": "user", "content": f"Here is the learner's text to evaluate:\n{text}"},
-                ],
-                temperature=0.3,
-                max_tokens=1000,
+                contents=f"{SYSTEM_PROMPT}\n\nHere is the learner's text to evaluate:\n{text}",
+                config=types.GenerateContentConfig(
+                    temperature=0.3,
+                    max_output_tokens=1000,
+                ),
             )
-            response_text = response.choices[0].message.content.strip()
+
+            response_text = response.text.strip()
+
             # Strip markdown code fences if model wraps response
             if response_text.startswith("```"):
                 response_text = response_text.split("```")[1]
@@ -116,12 +114,20 @@ class GeminiService:
                     response_text = response_text[4:]
             if response_text.endswith("```"):
                 response_text = response_text[:-3]
-            
+
             return json.loads(response_text.strip())
+
+        except json.JSONDecodeError as e:
+            logger.error(f"[GeminiService] JSON parse error: {e}")
+            return {
+                "corrected_text": text,
+                "detailed_feedback": "Good try! I had a small issue parsing the response — please try again.",
+                "score_out_of_10": 0,
+            }
         except Exception as e:
-            logger.error(f"Error calling GitHub Models API (temporary replacement for Gemini): {e}")
+            logger.error(f"[GeminiService] Error calling Gemini API: {e}")
             return {
                 "corrected_text": text,
                 "detailed_feedback": "Failed to process the text. Please try again later.",
-                "score_out_of_10": 0
+                "score_out_of_10": 0,
             }
