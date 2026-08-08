@@ -2,8 +2,7 @@ import json
 import re
 import hashlib
 import logging
-from google import genai
-from google.genai import types
+from openai import OpenAI
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
@@ -93,17 +92,21 @@ def _greeting_response(text: str) -> dict:
 
 class GitHubModelService:
     """
-    English correction service using Google Gemini API.
+    Uses GitHub Models (GPT-4o) via the OpenAI-compatible endpoint.
+    GitHub Models endpoint: https://models.inference.ai.azure.com
     """
 
     def __init__(self):
-        api_key = getattr(settings, 'GEMINI_API_KEY', None)
-        if not api_key:
-            logger.warning("GEMINI_API_KEY is not set. English coach feature will not work.")
+        token = getattr(settings, 'GITHUB_MODELS_TOKEN', None)
+        if not token:
+            logger.warning("GH_MODELS_TOKEN is not set. English coach feature will not work.")
             self.client = None
         else:
-            self.client = genai.Client(api_key=api_key)
-        self.model = "gemini-2.0-flash"
+            self.client = OpenAI(
+                base_url="https://models.inference.ai.azure.com",
+                api_key=token,
+            )
+        self.model = "gpt-4o"
 
     def correct_english(self, text: str) -> dict:
         """
@@ -112,7 +115,7 @@ class GitHubModelService:
         """
         # ── Greeting short-circuit ───────────────────────────────────────────
         if _is_greeting(text):
-            logger.info(f"[GeminiEnglishService] Greeting detected — skipping API: '{text}'")
+            logger.info(f"[GitHubModelService] Greeting detected — skipping API: '{text}'")
             return _greeting_response(text)
 
         if not self.client:
@@ -121,22 +124,23 @@ class GitHubModelService:
                 "corrected_text": text,
                 "polished_version": text,
                 "corrections": [],
-                "overall_feedback": "AI English Coach is unavailable — GEMINI_API_KEY not configured.",
+                "overall_feedback": "AI English Coach is unavailable — GH_MODELS_TOKEN not configured.",
                 "score_out_of_10": 0,
                 "error": True,
             }
 
         try:
-            response = self.client.models.generate_content(
+            response = self.client.chat.completions.create(
                 model=self.model,
-                contents=f"{SYSTEM_PROMPT}\n\nPlease correct and polish this text:\n\n{text}",
-                config=types.GenerateContentConfig(
-                    temperature=0.3,
-                    max_output_tokens=1500,
-                ),
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user",   "content": f"Please correct and polish this text:\n\n{text}"},
+                ],
+                temperature=0.3,
+                max_tokens=1500,
             )
 
-            raw = response.text.strip()
+            raw = response.choices[0].message.content.strip()
 
             # Strip accidental markdown code fences if model adds them
             if raw.startswith("```"):
@@ -152,7 +156,7 @@ class GitHubModelService:
             return result
 
         except json.JSONDecodeError as e:
-            logger.error(f"[GeminiEnglishService] JSON parse error: {e}")
+            logger.error(f"[GitHubModelService] JSON parse error: {e}")
             return {
                 "original_text": text,
                 "corrected_text": text,
@@ -163,7 +167,7 @@ class GitHubModelService:
                 "error": True,
             }
         except Exception as e:
-            logger.error(f"[GeminiEnglishService] API error: {e}")
+            logger.error(f"[GitHubModelService] API error: {e}")
             return {
                 "original_text": text,
                 "corrected_text": text,

@@ -1,7 +1,6 @@
 import json
 import logging
-from google import genai
-from google.genai import types
+from openai import OpenAI
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
@@ -52,19 +51,22 @@ Respond ONLY with raw valid JSON, no markdown, no code fences:
 
 class ListeningService:
     """
-    Uses Google Gemini API for:
+    TEMPORARY: Uses GitHub Models (GPT-4o) for:
     1. Generating English practice sentences
     2. Evaluating how accurately the user repeated the sentence
     """
 
     def __init__(self):
-        api_key = getattr(settings, 'GEMINI_API_KEY', None)
-        if not api_key:
-            logger.warning("GEMINI_API_KEY is not set. Listening feature will not work.")
+        token = getattr(settings, 'GITHUB_MODELS_TOKEN', None)
+        if not token:
+            logger.warning("GH_MODELS_TOKEN is not set. Listening feature will not work.")
             self.client = None
         else:
-            self.client = genai.Client(api_key=api_key)
-        self.model = "gemini-2.0-flash"
+            self.client = OpenAI(
+                base_url="https://models.inference.ai.azure.com",
+                api_key=token,
+            )
+        self.model = "gpt-4o"
 
     def generate_sentence(self, difficulty: str = "medium") -> dict:
         """Generate a practice sentence at the given difficulty level."""
@@ -77,15 +79,13 @@ class ListeningService:
         prompt = GENERATE_PROMPT.get(difficulty, GENERATE_PROMPT["medium"])
 
         try:
-            response = self.client.models.generate_content(
+            response = self.client.chat.completions.create(
                 model=self.model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    temperature=0.9,
-                    max_output_tokens=100,
-                ),
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.9,
+                max_tokens=100,
             )
-            raw = response.text.strip()
+            raw = response.choices[0].message.content.strip()
             # Strip accidental markdown fences
             if raw.startswith("```"):
                 raw = raw.split("```")[1]
@@ -111,7 +111,7 @@ class ListeningService:
             return {
                 "score_out_of_10": 0,
                 "is_good": False,
-                "improvement": "AI service is unavailable — GEMINI_API_KEY not configured.",
+                "improvement": "AI service is unavailable — GH_MODELS_TOKEN not configured.",
                 "error": True,
             }
 
@@ -121,15 +121,13 @@ class ListeningService:
         )
 
         try:
-            response = self.client.models.generate_content(
+            response = self.client.chat.completions.create(
                 model=self.model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    temperature=0.2,
-                    max_output_tokens=200,
-                ),
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2,
+                max_tokens=200,
             )
-            raw = response.text.strip()
+            raw = response.choices[0].message.content.strip()
             if raw.startswith("```"):
                 raw = raw.split("```")[1]
                 if raw.startswith("json"):
