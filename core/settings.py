@@ -26,7 +26,8 @@ load_dotenv(BASE_DIR / '.env')
 
 # ─── API Keys (injected via CI/CD secrets or local .env) ─────────────────────
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
-GH_MODELS_TOKEN = os.environ.get('GH_MODELS_TOKEN')
+GITHUB_MODELS_TOKEN = os.environ.get('GITHUB_MODELS_TOKEN') or os.environ.get('GH_MODELS_TOKEN')
+GH_MODELS_TOKEN = GITHUB_MODELS_TOKEN
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
